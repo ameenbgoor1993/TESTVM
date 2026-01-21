@@ -1,0 +1,376 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static dashboard_tags %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary-color: #1976D2;
+        --card-bg: white;
+        --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        --text-color: #333;
+    }
+
+    .dashboard-container {
+        padding: 20px;
+        background-color: #f5f5f5;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    /* Top Row - Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 15px;
+        border-radius: 4px;
+        text-align: center;
+        box-shadow: var(--card-shadow);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100px;
+    }
+
+    .stat-card .icon {
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+        align-self: flex-start;
+        opacity: 0.8;
+    }
+
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+
+    .stat-card .label {
+        font-size: 0.85rem;
+        line-height: 1.2;
+    }
+
+    /* Second Row - Large Cards */
+    .big-stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .big-stat-card {
+        background-color: var(--card-bg);
+        padding: 30px;
+        border-radius: 4px;
+        box-shadow: var(--card-shadow);
+        text-align: center;
+        border-top: 3px solid #ddd;
+    }
+
+    .big-stat-card .header {
+        display: flex;
+        justify-content: space-between;
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    .big-stat-card .value {
+        font-size: 4rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin: 10px 0;
+    }
+
+    .big-stat-card .label {
+        font-size: 1.2rem;
+        color: #555;
+        font-weight: 500;
+    }
+
+    .big-stat-card .sub-label {
+        font-size: 0.8rem;
+        color: #999;
+        margin-top: 5px;
+    }
+
+    /* Third Row - Enrollments */
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+    }
+
+    .enrollment-card {
+        background-color: var(--card-bg);
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .enrollment-stat {
+        font-size: 1.5rem;
+        font-weight: normal;
+    }
+
+    .enrollment-stat span {
+        font-weight: bold;
+        font-size: 2rem;
+        margin-right: 10px;
+    }
+
+    /* Fourth Row - Check-ins */
+    .checkin-section {
+        background-color: var(--card-bg);
+        padding: 20px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .checkin-form {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 100px;
+        gap: 20px;
+        align-items: end;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .total-box {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 10px;
+        text-align: center;
+        border-radius: 4px;
+    }
+
+    .total-box div {
+        font-size: 0.8rem;
+    }
+
+    .total-box strong {
+        font-size: 1.2rem;
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% get_dashboard_stats as stats %}
+<div class="dashboard-container">
+
+    <!-- Row 1: Key Metrics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="icon">📋</div>
+            <div class="value">{{ stats.pending_evaluations }}</div>
+            <div class="label">Evaluations<br>Pending</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">👥</div>
+            <div class="value">{{ stats.pending_interviews }}</div>
+            <div class="label">Interviews<br>Pending</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">👤</div>
+            <div class="value">{{ stats.volunteers_to_accept }}</div>
+            <div class="label">Volunteers<br>to be Accepted</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">💬</div>
+            <div class="value">{{ stats.volunteer_enquiries }}</div>
+            <div class="label">Volunteer<br>Enquiries</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">❓</div>
+            <div class="value">{{ stats.general_enquiries }}</div>
+            <div class="label">General<br>Enquiries</div>
+        </div>
+    </div>
+
+    <!-- Row 2: Big Counters -->
+    <div class="big-stats-grid">
+        <div class="big-stat-card">
+            <div class="header">
+                <span>From</span>
+                <span>To</span>
+            </div>
+            <div class="value">{{ stats.volunteering_hours }}</div>
+            <div class="label">Volunteering Hours</div>
+            <div class="sub-label">*Grand Total</div>
+        </div>
+        <div class="big-stat-card">
+            <div class="header">
+                <span>From</span>
+                <span>To</span>
+            </div>
+            <div class="value">{{ stats.checked_in_volunteers }}</div>
+            <div class="label">Checked-In Volunteers</div>
+            <div class="sub-label">*Grand Total</div>
+        </div>
+    </div>
+
+    <!-- Row 3: Trainings -->
+    <div class="section-title">Trainings</div>
+    <div class="enrollment-card">
+        <div class="enrollment-stat">
+            <span>{{ stats.training_enrollments }}</span> Training Enrollments
+        </div>
+    </div>
+
+    <!-- Row 4: Checked-In -->
+    <div class="section-title">Checked-In</div>
+    <div class="checkin-section">
+        <div class="checkin-form">
+            <div class="form-group">
+                <label>Event</label>
+                <select id="checkin-event-select"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="">Select Event...</option>
+                    {% for event in stats.all_events %}
+                    <option value="{{ event.id }}">{{ event.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>From</label>
+                <input type="date" id="checkin-from-date"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+                <label>To</label>
+                <input type="date" id="checkin-to-date"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div class="total-box">
+                <div>Totals</div>
+                <strong id="checkin-total-count">0</strong>
+                <div>Checked-In</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 5: Chart -->
+    <div class="section-title" style="margin-top: 30px;">Volunteer enrollments by time</div>
+
+    <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+        <div class="form-group" style="flex: 1;">
+            <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px;">From</label>
+            <input type="date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div class="form-group" style="flex: 1;">
+            <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px;">To</label>
+            <input type="date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+    </div>
+
+    <div class="chart-container"
+        style="position: relative; height:400px; width:100%; background: white; padding: 20px; box-shadow: var(--card-shadow); margin-bottom: 30px;">
+        <canvas id="enrollmentChart"></canvas>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('enrollmentChart').getContext('2d');
+
+        // Dynamic data from template tag
+        const chartData = JSON.parse('{{ stats.chart_data_json|escapejs }}');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Events'
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Volunteers Enrolled'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Areas'
+                        }
+                    }
+                }
+            }
+        });
+        // Check-In Stats Logic
+        const eventSelect = document.getElementById('checkin-event-select');
+        const fromDateInput = document.getElementById('checkin-from-date');
+        const toDateInput = document.getElementById('checkin-to-date');
+        const totalCountDisplay = document.getElementById('checkin-total-count');
+
+        function fetchCheckInStats() {
+            const eventId = eventSelect.value;
+            if (!eventId) {
+                totalCountDisplay.textContent = '0';
+                return;
+            }
+
+            const fromDate = fromDateInput.value;
+            const toDate = toDateInput.value;
+
+            // Build query params
+            let url = `/api/events/${eventId}/check-in-stats/?`;
+            if (fromDate) url += `from=${fromDate}&`;
+            if (toDate) url += `to=${toDate}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.check_in_count !== undefined) {
+                        totalCountDisplay.textContent = data.check_in_count;
+                    }
+                })
+                .catch(error => console.error('Error fetching stats:', error));
+        }
+
+        eventSelect.addEventListener('change', fetchCheckInStats);
+        fromDateInput.addEventListener('change', fetchCheckInStats);
+        toDateInput.addEventListener('change', fetchCheckInStats);
+
+    });
+</script>
+{% endblock %}

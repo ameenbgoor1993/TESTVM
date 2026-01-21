@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<form action="" method="post">
+    {% csrf_token %}
+    <h2>Send Message to {{ recipients|length }} Volunteers</h2>
+
+    <ul>
+        {% for user in recipients|slice:":5" %}
+        <li>{{ user.username }} ({{ user.email }} / {{ user.mobile_no }})</li>
+        {% endfor %}
+        {% if recipients|length > 5 %}
+        <li>... and {{ recipients|length|add:"-5" }} more.</li>
+        {% endif %}
+    </ul>
+
+    <!-- Hidden inputs to keep selected IDs -->
+    {% for id in selected_ids %}
+    <input type="hidden" name="_selected_action" value="{{ id }}" />
+    {% endfor %}
+    <input type="hidden" name="action" value="send_message_action" />
+    <input type="hidden" name="apply" value="1" />
+
+    {{ form.as_p }}
+
+    <div class="submit-row">
+        <input type="submit" value="Send Message" class="default" />
+    </div>
+</form>
+{% endblock %}
