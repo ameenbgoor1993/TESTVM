@@ -261,10 +261,10 @@ class AttendanceInline(admin.TabularInline):
 # Re-register with the new configuration
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'event', 'status', 'total_hours_display')
+    list_display = ('volunteer', 'event', 'status', 'total_hours_display')
     list_filter = ('status', 'event')
-    search_fields = ('user__username', 'event__title')
-    readonly_fields = ('user', 'event') 
+    search_fields = ('volunteer__username', 'event__title')
+    readonly_fields = ('volunteer', 'event') 
     actions = ['accept_application', 'reject_application']
     inlines = [AttendanceInline]
 
@@ -275,9 +275,9 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
     total_hours_display.short_description = "Total Hours"
 
     def accept_application(self, request, queryset):
-        queryset.update(status='ACCEPTED')
+        queryset.update(status=constants.APP_STATUS_ACCEPTED)
     accept_application.short_description = "Accept selected applications"
 
     def reject_application(self, request, queryset):
-        queryset.update(status='REJECTED')
+        queryset.update(status=constants.APP_STATUS_REJECTED)
     reject_application.short_description = "Reject selected applications"

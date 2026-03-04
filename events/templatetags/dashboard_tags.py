@@ -9,9 +9,10 @@ def get_dashboard_stats():
     from events.models import VolunteerApplication, Event, Area
     from django.db.models import Sum, Count
     import json
+    from events import constants as events_constants
 
     # 1. Volunteers to be Accepted (Pending Applications)
-    volunteers_to_accept = VolunteerApplication.objects.filter(status='PENDING').count()
+    volunteers_to_accept = VolunteerApplication.objects.filter(status=events_constants.APP_STATUS_PENDING).count()
 
     # 2. Checked-In Volunteers (Grand Total)
     # Count applications that have at least one attendance record

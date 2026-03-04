@@ -2,22 +2,20 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User
 from .forms import CustomUserCreationForm, CustomUserChangeForm, AdminUserCreationForm
+from . import constants
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
-    list_display = ('username', 'email', 'first_name_en', 'last_name_en', 'mobile_no', 'is_staff')
+    list_display = ('username', 'email', 'is_staff', 'is_volunteer')
     
     # Define fieldsets explicitly to remove default "Personal info" and reorganize
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('English Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en')}),
-        ('Arabic Name', {'fields': ('first_name_ar', 'middle_name_ar', 'last_name_ar')}),
-        ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession')}), # Renamed to avoid confusion
-        ('Contact Info', {'fields': ('email', 'mobile_no', 'address', 'emergency_contact')}), # Email moved here
+        ('Contact Info', {'fields': ('email',)}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions', 'is_volunteer'),
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -27,10 +25,6 @@ class CustomUserAdmin(UserAdmin):
             'classes': ('wide',),
             'fields': ('username', 'password1', 'password2', 'email', 'is_staff', 'is_volunteer'), 
         }),
-        ('English Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en')}),
-        ('Arabic Name', {'fields': ('first_name_ar', 'middle_name_ar', 'last_name_ar')}),
-        ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession', 'marital_status')}),
-        ('Contact Info', {'fields': ('mobile_no', 'address', 'emergency_contact')}),
     )
 
 from .models import AdminUser, VolunteerRegistration, AcceptedVolunteer
@@ -40,10 +34,19 @@ class AdminUserAdmin(UserAdmin):
     add_form = AdminUserCreationForm
     form = CustomUserChangeForm
     add_form_template = 'admin/change_form.html' # Force standard form rendering to bypass two-step process
-    list_display = ('username', 'email', 'mobile_no', 'is_staff')
+    list_display = ('username', 'email', 'is_staff')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
-    search_fields = ('username', 'first_name_en', 'first_name_ar', 'email', 'mobile_no')
+    search_fields = ('username', 'email')
     ordering = ('username',)
+    
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Contact Info', {'fields': ('email',)}),
+        ('Permissions', {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+        }),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
     
     # Detailed add_fieldsets matching the form fields + passwords
     add_fieldsets = (
@@ -52,48 +55,13 @@ class AdminUserAdmin(UserAdmin):
             'fields': (
                 'username', 'email',
                 'password1', 'password2',
-                'first_name_en', 'last_name_en',
-                'first_name_ar', 'last_name_ar',
-                'gender', 'birthdate',
-                'mobile_no', 'national_id',
                 'is_staff', 'is_superuser', 'groups'
             ),
         }),
     )
 
-class CustomUserAdmin(UserAdmin):
-    add_form = CustomUserCreationForm
-    form = CustomUserChangeForm
-    list_display = ('username', 'email', 'first_name_en', 'last_name_en', 'mobile_no', 'is_staff')
-    
-    # Define fieldsets explicitly to remove default "Personal info" and reorganize
-    fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('English Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en')}),
-        ('Arabic Name', {'fields': ('first_name_ar', 'middle_name_ar', 'last_name_ar')}),
-        ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession')}), # Renamed to avoid confusion
-        ('Contact Info', {'fields': ('email', 'mobile_no', 'address', 'emergency_contact')}), # Email moved here
-        ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-        }),
-        ('Important dates', {'fields': ('last_login', 'date_joined')}),
-    )
-    
-    # Update add_fieldsets to include all new fields during creation
-    # Note: 'confirm_password' is usually handled by the form/fieldset automatically if using standard widgets, 
-    # but strictly speaking UserCreationForm expects password fields. 
-    # Since we are using CustomUserCreationForm which inherits UserCreationForm, it has password fields.
-    # We just need to ensure the standard UserAdmin structure is respected or we define it explicitly.
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'password_1', 'password_2', 'email', 'is_staff', 'is_volunteer'), 
-        }),
-        ('English Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en')}),
-        ('Arabic Name', {'fields': ('first_name_ar', 'middle_name_ar', 'last_name_ar')}),
-        ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession', 'marital_status')}),
-        ('Contact Info', {'fields': ('mobile_no', 'address', 'emergency_contact')}),
-    )
+# Removed duplicate CustomUserAdmin
+
 
 
 
@@ -121,7 +89,7 @@ def send_message_action(modeladmin, request, queryset):
             # --- EMAIL ---
             if msg_type in ['email', 'both']:
                 from .models import MessageLog
-                recipients_with_email = [u for u in queryset if u.email]
+                recipients_with_email = [u for u in queryset if getattr(u, 'email', None)]
                 
                 for user in recipients_with_email:
                     try:
@@ -133,7 +101,7 @@ def send_message_action(modeladmin, request, queryset):
                             message_type='email',
                             subject=subject,
                             message=body,
-                            recipient=user,
+                            recipient=user if isinstance(user, User) else None,
                             recipient_email=user.email,
                             status='success',
                             sent_by=request.user
@@ -145,7 +113,7 @@ def send_message_action(modeladmin, request, queryset):
                             message_type='email',
                             subject=subject,
                             message=body,
-                            recipient=user,
+                            recipient=user if isinstance(user, User) else None,
                             recipient_email=user.email,
                             status='failed',
                             error_message=str(e),
@@ -156,7 +124,8 @@ def send_message_action(modeladmin, request, queryset):
             if msg_type in ['sms', 'both']:
                 from .models import MessageLog
                 sms = SMSService()
-                recipients_with_mobile = [u for u in queryset if u.mobile_no]
+                # Use mobile_no directly (from Volunteer)
+                recipients_with_mobile = [u for u in queryset if getattr(u, 'mobile_no', None)]
                 
                 for user in recipients_with_mobile:
                     success, response_msg = sms.send_message([user.mobile_no], body)
@@ -167,7 +136,7 @@ def send_message_action(modeladmin, request, queryset):
                             message_type='sms',
                             subject=subject,
                             message=body,
-                            recipient=user,
+                            recipient=user if isinstance(user, User) else None,
                             recipient_mobile=user.mobile_no,
                             status='success',
                             sent_by=request.user
@@ -179,7 +148,7 @@ def send_message_action(modeladmin, request, queryset):
                             message_type='sms',
                             subject=subject,
                             message=body,
-                            recipient=user,
+                            recipient=user if isinstance(user, User) else None,
                             recipient_mobile=user.mobile_no,
                             status='failed',
                             error_message=response_msg,
@@ -230,24 +199,24 @@ def export_volunteers_to_excel(modeladmin, request, queryset):
         cell.alignment = Alignment(horizontal='center')
     
     # Data rows
-    for user in queryset:
-        skills = ', '.join([s.name_en for s in user.skills.all()])
+    for vol in queryset:
+        skills = ', '.join([s.name_en for s in vol.skills.all()])
         ws.append([
-            user.username,
-            user.email,
-            user.mobile_no,
-            user.get_gender_display() if user.gender else '',
-            user.birthdate.strftime('%Y-%m-%d') if user.birthdate else '',
-            user.city.name_en if user.city else '',
-            user.get_age_range_display() if user.age_range else '',
-            user.nationality,
-            user.national_id,
-            user.profession,
-            user.get_marital_status_display() if user.marital_status else '',
-            user.get_volunteer_status_display(),
-            'Yes' if user.has_volunteered_before else 'No',
+            vol.username,
+            vol.email,
+            vol.mobile_no,
+            vol.get_gender_display() if vol.gender else '',
+            vol.birthdate.strftime('%Y-%m-%d') if vol.birthdate else '',
+            vol.city.name_en if vol.city else '',
+            vol.get_age_range_display() if vol.age_range else '',
+            vol.nationality,
+            vol.national_id,
+            vol.profession,
+            vol.get_marital_status_display() if vol.marital_status else '',
+            vol.get_volunteer_status_display(),
+            'Yes' if vol.has_volunteered_before else 'No',
             skills,
-            user.date_joined.strftime('%Y-%m-%d %H:%M')
+            vol.date_joined.strftime('%Y-%m-%d %H:%M')
         ])
     
     # Auto-adjust column widths
@@ -297,15 +266,15 @@ def export_volunteers_to_pdf(modeladmin, request, queryset):
     # Table data
     data = [['Username', 'Email', 'Mobile', 'Gender', 'City', 'Status', 'Skills']]
     
-    for user in queryset:
-        skills = ', '.join([s.name_en for s in user.skills.all()][:3])  # Limit skills for PDF
+    for vol in queryset:
+        skills = ', '.join([s.name_en for s in vol.skills.all()][:3])  # Limit skills for PDF
         data.append([
-            user.username[:20],
-            user.email[:25],
-            user.mobile_no,
-            user.get_gender_display() if user.gender else '',
-            user.city.name_en[:15] if user.city else '',
-            user.get_volunteer_status_display(),
+            vol.username[:20],
+            vol.email[:25],
+            vol.mobile_no,
+            vol.get_gender_display() if vol.gender else '',
+            vol.city.name_en[:15] if vol.city else '',
+            vol.get_volunteer_status_display(),
             skills[:30]
         ])
     
@@ -348,17 +317,18 @@ def export_all_volunteers_to_pdf(modeladmin, request, queryset):
 export_all_volunteers_to_pdf.short_description = "Export ALL to PDF"
 
 
+from .models import Volunteer
+
 @admin.register(VolunteerRegistration)
-class VolunteerRegistrationAdmin(UserAdmin):
+class VolunteerRegistrationAdmin(admin.ModelAdmin):
     list_display = ('username', 'email', 'mobile_no', 'marital_status', 'volunteer_status', 'date_joined')
-    list_filter = ('volunteer_status', 'marital_status', 'gender', 'skills')
-    search_fields = ('username', 'first_name_en', 'first_name_ar', 'email', 'mobile_no')
+    search_fields = ('username', 'email', 'first_name_en', 'first_name_ar', 'mobile_no')
     ordering = ('-date_joined',)
-    filter_horizontal = ('skills',)
     actions = ['accept_volunteer', send_message_action, export_volunteers_to_excel, export_volunteers_to_pdf]
+    filter_horizontal = ('skills', 'joining_reasons')
     
     fieldsets = (
-         (None, {'fields': ('username', 'email', 'volunteer_status')}),
+         (None, {'fields': ('username', 'email', 'password', 'is_active', 'volunteer_status')}),
          ('Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en', 'first_name_ar', 'middle_name_ar', 'last_name_ar')}),
          ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession', 'marital_status')}),
          ('Contact Info', {'fields': ('mobile_no', 'address', 'emergency_contact')}),
@@ -371,12 +341,11 @@ class VolunteerRegistrationAdmin(UserAdmin):
     
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            # All fields readonly for registration review
-            return [f.name for f in self.model._meta.fields] + ['skills', 'joining_reasons']
+            return ['username', 'email', 'password']
         return []
 
     def accept_volunteer(self, request, queryset):
-        queryset.update(volunteer_status='ACCEPTED')
+        queryset.update(volunteer_status=constants.VOLUNTEER_STATUS_ACCEPTED)
     accept_volunteer.short_description = "Accept selected volunteers"
     
     def get_urls(self):
@@ -403,16 +372,15 @@ class VolunteerRegistrationAdmin(UserAdmin):
         return super().changelist_view(request, extra_context)
 
 @admin.register(AcceptedVolunteer)
-class AcceptedVolunteerAdmin(UserAdmin):
+class AcceptedVolunteerAdmin(admin.ModelAdmin):
     list_display = ('username', 'email', 'mobile_no', 'marital_status', 'volunteer_status', 'date_joined')
-    list_filter = ('marital_status', 'gender', 'skills', 'city', 'possible_participation_days', 'possible_participation_time')
-    search_fields = ('username', 'first_name_en', 'first_name_ar', 'email', 'mobile_no')
+    search_fields = ('username', 'email', 'first_name_en', 'first_name_ar', 'mobile_no')
     ordering = ('-date_joined',)
-    filter_horizontal = ('skills', 'joining_reasons')
     actions = ['reject_volunteer', send_message_action, export_volunteers_to_excel, export_volunteers_to_pdf]
+    filter_horizontal = ('skills', 'joining_reasons')
     
     fieldsets = (
-         (None, {'fields': ('username', 'email', 'volunteer_status')}),
+         (None, {'fields': ('username', 'email', 'password', 'is_active', 'volunteer_status')}),
          ('Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en', 'first_name_ar', 'middle_name_ar', 'last_name_ar')}),
          ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession', 'marital_status')}),
          ('Contact Info', {'fields': ('mobile_no', 'address', 'emergency_contact')}),
@@ -425,11 +393,11 @@ class AcceptedVolunteerAdmin(UserAdmin):
     
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return [f.name for f in self.model._meta.fields] + ['skills']
+            return ['username', 'email', 'password']
         return []
 
     def reject_volunteer(self, request, queryset):
-        queryset.update(volunteer_status='REJECTED')
+        queryset.update(volunteer_status=constants.VOLUNTEER_STATUS_REJECTED)
     reject_volunteer.short_description = "Reject selected volunteers (Move to Registrations)"
     
     def get_urls(self):

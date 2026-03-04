@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.template.response import TemplateResponse
 from users.models import User
 from events.models import VolunteerApplication
+from events import constants as events_constants
 
 class VMSAdminSite(admin.AdminSite):
     site_header = "Volunteer Management"
@@ -12,7 +13,7 @@ class VMSAdminSite(admin.AdminSite):
         # Gather stats
         # Real data
         try:
-            pending_volunteers = VolunteerApplication.objects.filter(status='PENDING').count()
+            pending_volunteers = VolunteerApplication.objects.filter(status=events_constants.APP_STATUS_PENDING).count()
         except Exception:
             pending_volunteers = 0
             

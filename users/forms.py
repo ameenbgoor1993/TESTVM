@@ -7,10 +7,6 @@ class CustomUserCreationForm(UserCreationForm):
         model = User
         fields = (
             'username', 'email',
-            'first_name_en', 'middle_name_en', 'last_name_en',
-            'first_name_ar', 'middle_name_ar', 'last_name_ar',
-            'gender', 'birthdate', 'nationality', 'national_id',
-            'profession', 'mobile_no', 'address', 'emergency_contact',
             'is_staff', 'is_volunteer'
         )
 
@@ -28,10 +24,6 @@ class AdminUserCreationForm(UserCreationForm):
         model = User
         fields = (
             'username', 'email', 
-            'first_name_en', 'last_name_en', 
-            'first_name_ar', 'last_name_ar',
-            'gender', 'birthdate', 
-            'mobile_no', 'national_id',
             'is_staff', 'is_superuser', 'groups'
         )
 
@@ -43,12 +35,6 @@ class AdminUserCreationForm(UserCreationForm):
             user.save()
             self.save_m2m() # Save groups
         return user
-
-    def clean_national_id(self):
-        national_id = self.cleaned_data.get('national_id')
-        if not national_id:
-            return None  # Save as NULL to avoid unique constraint violation
-        return national_id
 
 class SendCommunicationForm(forms.Form):
     MESSAGE_TYPES = [

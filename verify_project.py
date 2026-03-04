@@ -7,8 +7,11 @@ django.setup()
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from events.models import Event, Area, VolunteerApplication
+from events import constants as events_constants
+from django.utils import timezone
 from django.utils import timezone
 import datetime
+from users.models import Volunteer
 
 User = get_user_model()
 
@@ -26,7 +29,7 @@ def run_verification():
     print("--- Starting Verification ---")
     
     # Clean up previous runs
-    User.objects.filter(username='volunteer1').delete()
+    Volunteer.objects.filter(username='volunteer1').delete()
     Event.objects.filter(title='Charity Run').delete()
 
     # 1. Setup Data
@@ -42,8 +45,9 @@ def run_verification():
             end_date=timezone.now() + datetime.timedelta(days=1, hours=4),
             location="Central Park"
         )
-        area = Area.objects.create(event=event, name="Water Station")
-        print(f"   Event created: {event.title} with Area: {area.name}")
+        area = Area.objects.create(name_en="Water Station", name_ar="محطة مياه")
+        event.areas.add(area)
+        print(f"   Event created: {event.title} with Area: {area.name_en}")
     else:
         event = Event.objects.get(title="Charity Run")
         area = event.areas.first()
@@ -59,7 +63,7 @@ def run_verification():
     }
     
     # Check if user exists first to avoid fail on re-run
-    if not User.objects.filter(username="volunteer1").exists():
+    if not Volunteer.objects.filter(username="volunteer1").exists():
         response = client.post('/api/register/', reg_data)
         if response.status_code == 201:
             print("   Registration Successful")
@@ -74,8 +78,8 @@ def run_verification():
     
     if resp_login.status_code == 200:
         data = get_data(resp_login)
-        token = data.get('token')
-        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        token = data.get('data', {}).get('token')
+        client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
         print("   Login Successful, Token received.")
     else:
         print(f"   Login Failed: {resp_login.content}")
@@ -94,31 +98,27 @@ def run_verification():
     print("4. Testing Join Event API...")
     join_data = {'event': event.id}
     # Check if already joined
-    if not VolunteerApplication.objects.filter(user__username='volunteer1', event=event).exists():
+    if not VolunteerApplication.objects.filter(volunteer__username='volunteer1', event=event).exists():
         resp_join = client.post('/api/events/join/', join_data)
         if resp_join.status_code == 201:
             print("   Joined Event Successful")
         else:
             print(f"   Failed to join event: {get_data(resp_join)}")
+            return
     else:
         print("   Already joined event.")
     
     # 5. Verify Application Pending
-    app = VolunteerApplication.objects.get(user__username='volunteer1', event=event)
+    app = VolunteerApplication.objects.get(volunteer__username='volunteer1', event=event)
     print(f"   Application Status: {app.status}")
     
     # 6. Admin Action (Simulate)
     print("6. Simulating Admin Acceptance...")
-    app.status = 'ACCEPTED'
-    app.assigned_area = area
+    app.status = events_constants.APP_STATUS_ACCEPTED
     app.save()
     
     app.refresh_from_db()
     print(f"   Updated Application Status: {app.status}")
-    try:
-        print(f"   Assigned Area: {app.assigned_area.name}")
-    except:
-        print("   No area assigned.")
     
     print("--- Verification Complete ---")
 

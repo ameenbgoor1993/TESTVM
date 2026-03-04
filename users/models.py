@@ -1,12 +1,33 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from . import constants
 
 class User(AbstractUser):
     """
     Custom User model for VMS.
     """
-    pass
+    is_volunteer = models.BooleanField(default=False)
 
+    # Defaults for admin users if needed, but AbstractUser has is_staff etc.
+    def save(self, *args, **kwargs):
+        # Admin logic: if not a volunteer, ensure they are staff
+        if not self.is_volunteer and not self.is_superuser:
+            self.is_staff = True
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.username
+
+from django.contrib.auth.hashers import make_password, check_password
+
+class Volunteer(models.Model):
+    # Core Auth fields for standalone volunteer
+    username = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128)
+    is_active = models.BooleanField(default=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    
     first_name_en = models.CharField(max_length=50, blank=True)
     middle_name_en = models.CharField(max_length=50, blank=True)
     last_name_en = models.CharField(max_length=50, blank=True)
@@ -15,12 +36,7 @@ class User(AbstractUser):
     middle_name_ar = models.CharField(max_length=50, blank=True)
     last_name_ar = models.CharField(max_length=50, blank=True)
     
-    GENDER_CHOICES = [
-
-        ('M', 'Male'),
-        ('F', 'Female'),
-    ]
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
+    gender = models.IntegerField(choices=constants.GENDER_CHOICES, blank=True, null=True)
     birthdate = models.DateField(null=True, blank=True)
     
     nationality = models.CharField(max_length=100, blank=True)
@@ -31,20 +47,10 @@ class User(AbstractUser):
     emergency_contact = models.CharField(max_length=20, blank=True)
     
     # New Fields
-    MARITAL_STATUS_CHOICES = [
-        ('Single', 'Single'),
-        ('Married', 'Married'),
-    ]
-    marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS_CHOICES, blank=True, null=True)
+    marital_status = models.IntegerField(choices=constants.MARITAL_STATUS_CHOICES, blank=True, null=True)
     skills = models.ManyToManyField('events.Skills', blank=True, related_name='volunteers')
-    is_volunteer = models.BooleanField(default=True)
     
-    VOLUNTEER_STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('ACCEPTED', 'Accepted'),
-        ('REJECTED', 'Rejected'),
-    ]
-    volunteer_status = models.CharField(max_length=20, choices=VOLUNTEER_STATUS_CHOICES, default='PENDING')
+    volunteer_status = models.IntegerField(choices=constants.VOLUNTEER_STATUS_CHOICES, default=constants.VOLUNTEER_STATUS_PENDING)
 
     # Enhanced Volunteer Profile
     city = models.ForeignKey('events.City', on_delete=models.SET_NULL, null=True, blank=True, related_name='volunteers')
@@ -54,52 +60,47 @@ class User(AbstractUser):
     joining_reasons = models.ManyToManyField('core_settings.JoiningReason', blank=True, related_name='volunteers')
     
     # Participation Preferences
-    DAYS_CHOICES = [
-        ('Saturday', 'Saturday'),
-        ('Sunday', 'Sunday'),
-        ('Monday', 'Monday'),
-        ('Tuesday', 'Tuesday'),
-        ('Wednesday', 'Wednesday'),
-        ('Thursday', 'Thursday'),
-        ('Friday', 'Friday'),
-    ]
-    # Storing as comma-separated values for simplicity
     possible_participation_days = models.CharField(max_length=255, blank=True, help_text="Select multiple days (comma separated)")
-
-    TIME_CHOICES = [
-        ('Morning', 'Morning'),
-        ('Evening', 'Evening'),
-    ]
     possible_participation_time = models.CharField(max_length=255, blank=True, help_text="Select preferred times")
 
-    AGE_RANGE_CHOICES = [
-        ('ALL', 'All'),
-        ('lt_7', '< 7'),
-        ('7_12', '7 - 12'),
-        ('12_15', '12 - 15'),
-        ('15_18', '15 - 18'),
-        ('18_28', '18 - 28'),
-        ('28_39', '28 - 39'),
-        ('39_50', '39 - 50'),
-        ('gt_50', '> 50'),
-    ]
-    age_range = models.CharField(max_length=20, choices=AGE_RANGE_CHOICES, blank=True, null=True, verbose_name="Age Group")
+    age_range = models.IntegerField(choices=constants.AGE_RANGE_CHOICES, blank=True, null=True, verbose_name="Age Group")
 
     def __str__(self):
-        return self.username
+        return f"{self.first_name_en} {self.last_name_en} ({self.username})"
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
+class VolunteerToken(models.Model):
+    key = models.CharField(max_length=40, primary_key=True)
+    volunteer = models.OneToOneField(Volunteer, related_name='auth_token', on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            import binascii
+            import os
+            self.key = binascii.hexlify(os.urandom(20)).decode()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.key
 
 class AdminUserManager(models.Manager):
     def get_queryset(self):
         # Strict separation: Admins are staff and NOT volunteers (as per request)
         return super().get_queryset().filter(is_staff=True, is_volunteer=False)
 
-class VolunteerRegistrationManager(models.Manager):
+class AdminUserManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(is_volunteer=True).exclude(volunteer_status='ACCEPTED')
-
-class AcceptedVolunteerManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(is_volunteer=True, volunteer_status='ACCEPTED')
+        return super().get_queryset().filter(is_staff=True, is_volunteer=False)
 
 class AdminUser(User):
     objects = AdminUserManager()
@@ -108,14 +109,22 @@ class AdminUser(User):
         verbose_name = "Admin"
         verbose_name_plural = "Admins"
 
-class VolunteerRegistration(User):
+class VolunteerRegistrationManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(volunteer_status=constants.VOLUNTEER_STATUS_PENDING)
+
+class AcceptedVolunteerManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(volunteer_status=constants.VOLUNTEER_STATUS_ACCEPTED)
+
+class VolunteerRegistration(Volunteer):
     objects = VolunteerRegistrationManager()
     class Meta:
         proxy = True
         verbose_name = "Volunteer Registration"
         verbose_name_plural = "Volunteer Registrations"
 
-class AcceptedVolunteer(User):
+class AcceptedVolunteer(Volunteer):
     objects = AcceptedVolunteerManager()
     class Meta:
         proxy = True
@@ -124,23 +133,13 @@ class AcceptedVolunteer(User):
 
 class MessageLog(models.Model):
     """Log of all messages sent via admin panel"""
-    MESSAGE_TYPE_CHOICES = [
-        ('sms', 'SMS'),
-        ('email', 'Email'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('success', 'Success'),
-        ('failed', 'Failed'),
-    ]
-    
-    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
+    message_type = models.IntegerField(choices=constants.MESSAGE_TYPE_CHOICES)
     subject = models.CharField(max_length=255, blank=True)
     message = models.TextField()
     recipient = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='received_messages')
     recipient_email = models.EmailField(blank=True)
     recipient_mobile = models.CharField(max_length=20, blank=True)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    status = models.IntegerField(choices=constants.MESSAGE_STATUS_CHOICES)
     error_message = models.TextField(blank=True)
     sent_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_messages')
     sent_at = models.DateTimeField(auto_now_add=True)

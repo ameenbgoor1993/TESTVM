@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from . import constants
 
 class City(models.Model):
     name_ar = models.CharField(max_length=100, verbose_name="Name (Arabic)")
@@ -22,24 +23,10 @@ class Skills(models.Model):
         return self.name_en
 
 class Event(models.Model):
-    CATEGORY_CHOICES = [
-        ('Event', 'Event'),
-        ('Talks', 'Talks'),
-        ('International/VolunteerDay', 'International/VolunteerDay'),
-        ('Ceremony', 'Ceremony'),
-        ('Programs', 'Programs'),
-        ('ProffisionalVolunteer', 'ProffisionalVolunteer'),
-        ('Training', 'Training'),
-        ('Workshop', 'Workshop'),
-        ('Initiative', 'Initiative'),
-        ('MeetingCycle', 'MeetingCycle'),
-        ('Orientation', 'Orientation'),
-    ]
-
     # Basic Info
     title = models.CharField(max_length=255)
     description = models.TextField()
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Event')
+    category = models.IntegerField(choices=constants.CATEGORY_CHOICES, default=constants.CATEGORY_EVENT)
     cities = models.ManyToManyField(City, blank=True, related_name='events')
     location = models.CharField(max_length=255)
     
@@ -54,11 +41,7 @@ class Event(models.Model):
     send_notification_to_volunteer = models.BooleanField(default=False)
     
     # Capacity & Requirements
-    GENDER_PREFERENCE_CHOICES = [
-        ('GENERAL', 'General'),
-        ('SPECIFIC', 'Specify Gender'),
-    ]
-    gender_preference = models.CharField(max_length=10, choices=GENDER_PREFERENCE_CHOICES, default='GENERAL')
+    gender_preference = models.IntegerField(choices=constants.GENDER_PREFERENCE_CHOICES, default=constants.GENDER_PREF_GENERAL)
     
     required_volunteers = models.IntegerField(default=0)
     extra_volunteers = models.IntegerField(default=0, help_text="Extra numbers in the waiting list")
@@ -72,18 +55,7 @@ class Event(models.Model):
     extra_seats = models.IntegerField(default=0)
     min_participation_time_slots = models.IntegerField(default=1)
 
-    AGE_RANGE_CHOICES = [
-        ('ALL', 'All'),
-        ('lt_7', '< 7'),
-        ('7_12', '7 - 12'),
-        ('12_15', '12 - 15'),
-        ('15_18', '15 - 18'),
-        ('18_28', '18 - 28'),
-        ('28_39', '28 - 39'),
-        ('39_50', '39 - 50'),
-        ('gt_50', '> 50'),
-    ]
-    age_range = models.CharField(max_length=20, choices=AGE_RANGE_CHOICES, default='ALL', verbose_name="Target Age Group")
+    age_range = models.IntegerField(choices=constants.AGE_RANGE_CHOICES, default=constants.AGE_RANGE_ALL, verbose_name="Target Age Group")
     
     # Media
     featured_image = models.ImageField(upload_to='event_images/', blank=True, null=True)
@@ -123,25 +95,19 @@ class Area(models.Model):
         return self.name_en
 
 class VolunteerApplication(models.Model):
-    STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('ACCEPTED', 'Accepted'),
-        ('REJECTED', 'Rejected'),
-    ]
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='applications', on_delete=models.CASCADE)
+    volunteer = models.ForeignKey('users.Volunteer', related_name='applications', on_delete=models.CASCADE)
     event = models.ForeignKey(Event, related_name='applications', on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    status = models.IntegerField(choices=constants.APP_STATUS_CHOICES, default=constants.APP_STATUS_PENDING)
 
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('user', 'event')
+        unique_together = ('volunteer', 'event')
 
     def __str__(self):
-        return f"{self.user.username} - {self.event.title} ({self.status})"
+        return f"{self.volunteer.username} - {self.event.title} ({self.status})"
 
 class Attendance(models.Model):
     application = models.ForeignKey(VolunteerApplication, related_name='attendances', on_delete=models.CASCADE)
@@ -159,7 +125,7 @@ class Attendance(models.Model):
         verbose_name_plural = "Attendance Records"
 
     def __str__(self):
-        return f"{self.application.user.username} - {self.check_in_time.strftime('%Y-%m-%d %H:%M')}"
+        return f"{self.application.volunteer.username} - {self.check_in_time.strftime('%Y-%m-%d %H:%M')}"
 
     @property
     def duration(self):

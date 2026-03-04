@@ -1,0 +1,118 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# =============================================================================
+# Django
+# =============================================================================
+
+# Database
+*.sqlite3
+db.sqlite3
+db.sqlite3-journal
+
+# Media & static (collected)
+/media/
+/staticfiles/
+/static_root/
+
+# Django secret files & local settings
+.env
+.env.*
+!.env.example
+local_settings.py
+secrets.py
+
+# Django cache
+*.cache
+
+# =============================================================================
+# Migrations — KEEP migration .py files, IGNORE their compiled cache
+# =============================================================================
+# Do NOT ignore migrations/*.py — those must be version controlled
+**/migrations/__pycache__/
+
+# =============================================================================
+# Logs & temporary files
+# =============================================================================
+*.log
+*.pot
+*.pid
+*.seed
+*.gz
+*.tar
+*.zip
+
+# Custom verify/check scripts output
+verify_out.txt
+verify_project_out.txt
+verify_reg_out.txt
+check.txt
+check.log
+error.log
+errors.txt
+loader.txt
+
+# =============================================================================
+# Virtual environments
+# =============================================================================
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# =============================================================================
+# IDEs & editors
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Testing & coverage
+# =============================================================================
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.pytest_cache/
+nosetests.xml
+test-results/
+
+# =============================================================================
+# Build & packaging
+# =============================================================================
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# =============================================================================
+# Celery
+# =============================================================================
+celerybeat-schedule
+celerybeat.pid
+
+# =============================================================================
+# Node (if using frontend tooling)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-error.log

@@ -1,15 +1,16 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
+from events.models import City, Skills
+from core_settings.models import JoiningReason
+from .models import Volunteer
 
-User = get_user_model()
-
-class UserRegistrationSerializer(serializers.ModelSerializer):
+class VolunteerRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = User
+        model = Volunteer
         fields = (
             'id', 'username', 'email', 'password',
+            # We'll accept these in the request, but they belong to Volunteer now
             'first_name_en', 'middle_name_en', 'last_name_en',
             'first_name_ar', 'middle_name_ar', 'last_name_ar',
             'gender', 'birthdate', 'nationality', 'national_id',
@@ -18,28 +19,47 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'joining_reasons', 'possible_participation_days', 'possible_participation_time',
             'skills'
         )
-        extra_kwargs = {
-            'first_name_en': {'required': False},
-            'last_name_en': {'required': False},
-            'joining_reasons': {'required': False},
-            'skills': {'required': False},
-        }
+        # Explicitly declare all fields for Volunteer since they are now on the same model.
+        # However, for simplicity without rewriting the whole serializer, we'll explicitly keep the current declarations.
+    first_name_en = serializers.CharField(required=False, allow_blank=True)
+    middle_name_en = serializers.CharField(required=False, allow_blank=True)
+    last_name_en = serializers.CharField(required=False, allow_blank=True)
+    first_name_ar = serializers.CharField(required=False, allow_blank=True)
+    middle_name_ar = serializers.CharField(required=False, allow_blank=True)
+    last_name_ar = serializers.CharField(required=False, allow_blank=True)
+    gender = serializers.CharField(required=False, allow_blank=True)
+    birthdate = serializers.DateField(required=False, allow_null=True)
+    nationality = serializers.CharField(required=False, allow_blank=True)
+    national_id = serializers.CharField(required=False, allow_blank=True)
+    profession = serializers.CharField(required=False, allow_blank=True)
+    mobile_no = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    emergency_contact = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False, allow_null=True)
+    age_range = serializers.CharField(required=False, allow_blank=True)
+    has_volunteered_before = serializers.BooleanField(required=False, default=False)
+    experience_description = serializers.CharField(required=False, allow_blank=True)
+    work_link = serializers.URLField(required=False, allow_blank=True)
+    joining_reasons = serializers.PrimaryKeyRelatedField(many=True, queryset=JoiningReason.objects.all(), required=False)
+    possible_participation_days = serializers.CharField(required=False, allow_blank=True)
+    possible_participation_time = serializers.CharField(required=False, allow_blank=True)
+    skills = serializers.PrimaryKeyRelatedField(many=True, queryset=Skills.objects.all(), required=False)
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         joining_reasons = validated_data.pop('joining_reasons', [])
         skills = validated_data.pop('skills', [])
         
-        user = User.objects.create_user(**validated_data)
+        volunteer = Volunteer.objects.create(**validated_data)
         
         if password:
-            user.set_password(password)
-            user.save()
+            volunteer.set_password(password)
+            volunteer.save()
             
         if joining_reasons:
-            user.joining_reasons.set(joining_reasons)
+            volunteer.joining_reasons.set(joining_reasons)
             
         if skills:
-            user.skills.set(skills)
+            volunteer.skills.set(skills)
             
-        return user
+        return volunteer

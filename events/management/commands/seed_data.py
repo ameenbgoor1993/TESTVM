@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from users.models import User
 from events.models import Event, Area, VolunteerApplication
+from events import constants as events_constants
 
 class Command(BaseCommand):
     help = 'Seeds the database with sample events and volunteer data'
@@ -71,19 +72,15 @@ class Command(BaseCommand):
                     is_checked_in = random.choice([True, False, True, True, False])
                     
                     VolunteerApplication.objects.get_or_create(
-                        user=volunteer,
+                        volunteer=volunteer,
                         event=event,
                         defaults={
-                            'status': 'ACCEPTED',
-                            'assigned_area': area,
-                            'checked_in': is_checked_in
+                            'status': events_constants.APP_STATUS_ACCEPTED,
                         }
                     )
                     # Update if exists
-                    VolunteerApplication.objects.filter(user=volunteer, event=event).update(
-                        status='ACCEPTED',
-                        assigned_area=area,
-                        checked_in=is_checked_in
+                    VolunteerApplication.objects.filter(volunteer=volunteer, event=event).update(
+                        status=events_constants.APP_STATUS_ACCEPTED,
                     )
 
         self.stdout.write(self.style.SUCCESS('Successfully seeded database with events and accepted volunteers.'))

@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from django.utils.dateparse import parse_date
 from .models import Event, VolunteerApplication
 from .serializers import EventSerializer, VolunteerApplicationSerializer
+from . import constants
+from users import constants as users_constants
 
 
 class EventListView(generics.ListAPIView):
@@ -18,9 +20,12 @@ class EventDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
 
 
+from users.authentication import VolunteerTokenAuthentication
+
 class JoinEventView(generics.CreateAPIView):
     queryset = VolunteerApplication.objects.all()
     serializer_class = VolunteerApplicationSerializer
+    authentication_classes = [VolunteerTokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -47,7 +52,7 @@ class JoinEventView(generics.CreateAPIView):
              
         # Age Range Validation
         user_age_range = request.user.age_range
-        if event.age_range != 'ALL':
+        if event.age_range != constants.AGE_RANGE_ALL:
             if not user_age_range:
                 return Response({'error': 'Please update your profile with your Age Group to join this event'}, status=status.HTTP_400_BAD_REQUEST)
             if user_age_range != event.age_range:
@@ -71,21 +76,21 @@ class JoinEventView(generics.CreateAPIView):
                  return Response({'error': 'You do not have any of the required skills for this event'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Capacity & Gender Validation
-        user_gender = request.user.gender # 'M' or 'F' based on User model
+        user_gender = request.user.gender # 1 or 2 based on Volunteer model
         
-        if event.gender_preference == 'SPECIFIC':
+        if event.gender_preference == constants.GENDER_PREF_SPECIFIC:
             if not user_gender:
                 return Response({'error': 'Please update your profile with your gender to join this event'}, status=status.HTTP_400_BAD_REQUEST)
                 
-            if user_gender == 'M':
+            if user_gender == users_constants.GENDER_MALE:
                 required = event.required_males
                 extra = event.extra_males
                 # Count current male applications
-                current_count = event.applications.filter(user__gender='M').exclude(status='REJECTED').count()
-            elif user_gender == 'F':
+                current_count = event.applications.filter(volunteer__gender=users_constants.GENDER_MALE).exclude(status=constants.APP_STATUS_REJECTED).count()
+            elif user_gender == users_constants.GENDER_FEMALE:
                 required = event.required_females
                 extra = event.extra_females
-                current_count = event.applications.filter(user__gender='F').exclude(status='REJECTED').count()
+                current_count = event.applications.filter(volunteer__gender=users_constants.GENDER_FEMALE).exclude(status=constants.APP_STATUS_REJECTED).count()
             else:
                 return Response({'error': 'Gender not supported for this event criteria'}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -96,7 +101,7 @@ class JoinEventView(generics.CreateAPIView):
         else: # GENERAL
             required = event.required_volunteers
             extra = event.extra_volunteers
-            current_count = event.applications.exclude(status='REJECTED').count()
+            current_count = event.applications.exclude(status=constants.APP_STATUS_REJECTED).count()
             
             total_limit = required + extra
             # If both are 0, does it mean unlimited? Usually yes, or manually managed. 
@@ -119,7 +124,7 @@ class JoinEventView(generics.CreateAPIView):
             raise e
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(volunteer=self.request.user)
 
 class EventCheckInStatsView(APIView):
     permission_classes = [permissions.AllowAny] # Adjust as needed
