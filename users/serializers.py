@@ -1,65 +1,98 @@
 from rest_framework import serializers
 from events.models import City, Skills
 from core_settings.models import JoiningReason
-from .models import Volunteer
+from .models import Volunteer, VolunteerProfile
+import uuid
 
-class VolunteerRegistrationSerializer(serializers.ModelSerializer):
+class VolunteerRegistrationStep1Serializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True)
+    mobile = serializers.CharField(required=True)
+    
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
+    gender = serializers.IntegerField(required=True)
+    date_of_birth = serializers.DateField(required=True)
+    
+    def validate_email(self, value):
+        if Volunteer.objects.filter(email=value).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return value
+
+    def validate_mobile(self, value):
+        if Volunteer.objects.filter(mobile_no=value).exists():
+            raise serializers.ValidationError("An account with this mobile number already exists.")
+        return value
+
+    def create(self, validated_data):
+        email = validated_data.get('email')
+        mobile = validated_data.get('mobile')
+        password = validated_data.get('password')
+        
+        username = email
+        if Volunteer.objects.filter(username=username).exists():
+            username = f"{email}_{str(uuid.uuid4())[:8]}"
+
+        # Create Account
+        account = Volunteer.objects.create(
+            username=username,
+            email=email,
+            mobile_no=mobile
+        )
+        account.set_password(password)
+        account.save()
+        
+        # Create Initial Profile
+        VolunteerProfile.objects.create(
+            account=account,
+            first_name_en=validated_data.get('first_name'),
+            last_name_en=validated_data.get('last_name'),
+            gender=validated_data.get('gender'),
+            birthdate=validated_data.get('date_of_birth'),
+            user_type=2 # Default to Themself
+        )
+        
+        return account
+
+class VolunteerProfileCreateSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source='first_name_en', required=True)
+    last_name = serializers.CharField(source='last_name_en', required=True)
+    date_of_birth = serializers.DateField(source='birthdate', required=True)
 
     class Meta:
-        model = Volunteer
+        model = VolunteerProfile
+        fields = ('id', 'first_name', 'last_name', 'gender', 'date_of_birth', 'user_type')
+        read_only_fields = ('id',)
+
+    def create(self, validated_data):
+        account = self.context['request'].user
+        validated_data['account'] = account
+        return super().create(validated_data)
+
+class VolunteerProfileUpdateSerializer(serializers.ModelSerializer):
+    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False, allow_null=True)
+    joining_reasons = serializers.PrimaryKeyRelatedField(many=True, queryset=JoiningReason.objects.all(), required=False)
+    skills = serializers.PrimaryKeyRelatedField(many=True, queryset=Skills.objects.all(), required=False)
+
+    class Meta:
+        model = VolunteerProfile
         fields = (
-            'id', 'username', 'email', 'password',
-            # We'll accept these in the request, but they belong to Volunteer now
-            'first_name_en', 'middle_name_en', 'last_name_en',
-            'first_name_ar', 'middle_name_ar', 'last_name_ar',
-            'gender', 'birthdate', 'nationality', 'national_id',
-            'profession', 'mobile_no', 'address', 'emergency_contact',
+            'id', 'user_type',
+            'first_name_en', 'last_name_en', 'gender', 'birthdate',
+            'first_name_ar', 'middle_name_en', 'middle_name_ar', 'last_name_ar',
+            'nationality', 'national_id', 'profession', 'address', 'emergency_contact',
             'city', 'age_range', 'has_volunteered_before', 'experience_description', 'work_link',
             'joining_reasons', 'possible_participation_days', 'possible_participation_time',
             'skills'
         )
-        # Explicitly declare all fields for Volunteer since they are now on the same model.
-        # However, for simplicity without rewriting the whole serializer, we'll explicitly keep the current declarations.
-    first_name_en = serializers.CharField(required=False, allow_blank=True)
-    middle_name_en = serializers.CharField(required=False, allow_blank=True)
-    last_name_en = serializers.CharField(required=False, allow_blank=True)
-    first_name_ar = serializers.CharField(required=False, allow_blank=True)
-    middle_name_ar = serializers.CharField(required=False, allow_blank=True)
-    last_name_ar = serializers.CharField(required=False, allow_blank=True)
-    gender = serializers.CharField(required=False, allow_blank=True)
-    birthdate = serializers.DateField(required=False, allow_null=True)
-    nationality = serializers.CharField(required=False, allow_blank=True)
-    national_id = serializers.CharField(required=False, allow_blank=True)
-    profession = serializers.CharField(required=False, allow_blank=True)
-    mobile_no = serializers.CharField(required=False, allow_blank=True)
-    address = serializers.CharField(required=False, allow_blank=True)
-    emergency_contact = serializers.CharField(required=False, allow_blank=True)
-    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False, allow_null=True)
-    age_range = serializers.CharField(required=False, allow_blank=True)
-    has_volunteered_before = serializers.BooleanField(required=False, default=False)
-    experience_description = serializers.CharField(required=False, allow_blank=True)
-    work_link = serializers.URLField(required=False, allow_blank=True)
-    joining_reasons = serializers.PrimaryKeyRelatedField(many=True, queryset=JoiningReason.objects.all(), required=False)
-    possible_participation_days = serializers.CharField(required=False, allow_blank=True)
-    possible_participation_time = serializers.CharField(required=False, allow_blank=True)
-    skills = serializers.PrimaryKeyRelatedField(many=True, queryset=Skills.objects.all(), required=False)
+        read_only_fields = ('id',)
 
-    def create(self, validated_data):
-        password = validated_data.pop('password', None)
-        joining_reasons = validated_data.pop('joining_reasons', [])
-        skills = validated_data.pop('skills', [])
-        
-        volunteer = Volunteer.objects.create(**validated_data)
-        
-        if password:
-            volunteer.set_password(password)
-            volunteer.save()
-            
-        if joining_reasons:
-            volunteer.joining_reasons.set(joining_reasons)
-            
-        if skills:
-            volunteer.skills.set(skills)
-            
-        return volunteer
+class VolunteerRegistrationStep2Serializer(serializers.ModelSerializer):
+    # This was originally used to specify the user_type. We can update the main profile.
+    user_type = serializers.IntegerField(required=True)
+    class Meta:
+        model = VolunteerProfile
+        fields = ('user_type',)
+
+class VolunteerRegistrationStep3Serializer(VolunteerProfileUpdateSerializer):
+    pass

@@ -263,7 +263,7 @@ class AttendanceInline(admin.TabularInline):
 class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('volunteer', 'event', 'status', 'total_hours_display')
     list_filter = ('status', 'event')
-    search_fields = ('volunteer__username', 'event__title')
+    search_fields = ('volunteer__account__username', 'volunteer__first_name_en', 'event__title')
     readonly_fields = ('volunteer', 'event') 
     actions = ['accept_application', 'reject_application']
     inlines = [AttendanceInline]

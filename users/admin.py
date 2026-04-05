@@ -202,9 +202,9 @@ def export_volunteers_to_excel(modeladmin, request, queryset):
     for vol in queryset:
         skills = ', '.join([s.name_en for s in vol.skills.all()])
         ws.append([
-            vol.username,
-            vol.email,
-            vol.mobile_no,
+            vol.account.username,
+            vol.account.email,
+            vol.account.mobile_no,
             vol.get_gender_display() if vol.gender else '',
             vol.birthdate.strftime('%Y-%m-%d') if vol.birthdate else '',
             vol.city.name_en if vol.city else '',
@@ -216,7 +216,7 @@ def export_volunteers_to_excel(modeladmin, request, queryset):
             vol.get_volunteer_status_display(),
             'Yes' if vol.has_volunteered_before else 'No',
             skills,
-            vol.date_joined.strftime('%Y-%m-%d %H:%M')
+            vol.account.date_joined.strftime('%Y-%m-%d %H:%M')
         ])
     
     # Auto-adjust column widths
@@ -269,9 +269,9 @@ def export_volunteers_to_pdf(modeladmin, request, queryset):
     for vol in queryset:
         skills = ', '.join([s.name_en for s in vol.skills.all()][:3])  # Limit skills for PDF
         data.append([
-            vol.username[:20],
-            vol.email[:25],
-            vol.mobile_no,
+            vol.account.username[:20],
+            vol.account.email[:25],
+            vol.account.mobile_no,
             vol.get_gender_display() if vol.gender else '',
             vol.city.name_en[:15] if vol.city else '',
             vol.get_volunteer_status_display(),
@@ -321,28 +321,37 @@ from .models import Volunteer
 
 @admin.register(VolunteerRegistration)
 class VolunteerRegistrationAdmin(admin.ModelAdmin):
+    def username(self, obj): return obj.account.username
+    username.admin_order_field = 'account__username'
+    
+    def email(self, obj): return obj.account.email
+    email.admin_order_field = 'account__email'
+    
+    def mobile_no(self, obj): return obj.account.mobile_no
+    mobile_no.admin_order_field = 'account__mobile_no'
+    
+    def date_joined(self, obj): return obj.account.date_joined
+    date_joined.admin_order_field = 'account__date_joined'
+
     list_display = ('username', 'email', 'mobile_no', 'marital_status', 'volunteer_status', 'date_joined')
-    search_fields = ('username', 'email', 'first_name_en', 'first_name_ar', 'mobile_no')
-    ordering = ('-date_joined',)
+    search_fields = ('account__username', 'account__email', 'first_name_en', 'first_name_ar', 'account__mobile_no')
+    ordering = ('-account__date_joined',)
     actions = ['accept_volunteer', send_message_action, export_volunteers_to_excel, export_volunteers_to_pdf]
     filter_horizontal = ('skills', 'joining_reasons')
     
+    readonly_fields = ('username', 'email', 'mobile_no', 'date_joined')
+    
     fieldsets = (
-         (None, {'fields': ('username', 'email', 'password', 'is_active', 'volunteer_status')}),
+         ('Account Overview', {'fields': ('username', 'email', 'mobile_no', 'date_joined', 'volunteer_status')}),
          ('Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en', 'first_name_ar', 'middle_name_ar', 'last_name_ar')}),
          ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession', 'marital_status')}),
-         ('Contact Info', {'fields': ('mobile_no', 'address', 'emergency_contact')}),
+         ('Contact Info', {'fields': ('address', 'emergency_contact')}),
          ('Extra Experience Info', {'fields': ('city', 'age_range', 'has_volunteered_before', 'experience_description', 'work_link', 'joining_reasons', 'possible_participation_days', 'possible_participation_time')}),
          ('Skills', {'fields': ('skills',)}),
     )
 
     def has_add_permission(self, request):
         return False
-    
-    def get_readonly_fields(self, request, obj=None):
-        if obj:
-            return ['username', 'email', 'password']
-        return []
 
     def accept_volunteer(self, request, queryset):
         queryset.update(volunteer_status=constants.VOLUNTEER_STATUS_ACCEPTED)
@@ -373,28 +382,37 @@ class VolunteerRegistrationAdmin(admin.ModelAdmin):
 
 @admin.register(AcceptedVolunteer)
 class AcceptedVolunteerAdmin(admin.ModelAdmin):
+    def username(self, obj): return obj.account.username
+    username.admin_order_field = 'account__username'
+    
+    def email(self, obj): return obj.account.email
+    email.admin_order_field = 'account__email'
+    
+    def mobile_no(self, obj): return obj.account.mobile_no
+    mobile_no.admin_order_field = 'account__mobile_no'
+    
+    def date_joined(self, obj): return obj.account.date_joined
+    date_joined.admin_order_field = 'account__date_joined'
+
     list_display = ('username', 'email', 'mobile_no', 'marital_status', 'volunteer_status', 'date_joined')
-    search_fields = ('username', 'email', 'first_name_en', 'first_name_ar', 'mobile_no')
-    ordering = ('-date_joined',)
+    search_fields = ('account__username', 'account__email', 'first_name_en', 'first_name_ar', 'account__mobile_no')
+    ordering = ('-account__date_joined',)
     actions = ['reject_volunteer', send_message_action, export_volunteers_to_excel, export_volunteers_to_pdf]
     filter_horizontal = ('skills', 'joining_reasons')
     
+    readonly_fields = ('username', 'email', 'mobile_no', 'date_joined')
+    
     fieldsets = (
-         (None, {'fields': ('username', 'email', 'password', 'is_active', 'volunteer_status')}),
+         ('Account Overview', {'fields': ('username', 'email', 'mobile_no', 'date_joined', 'volunteer_status')}),
          ('Name', {'fields': ('first_name_en', 'middle_name_en', 'last_name_en', 'first_name_ar', 'middle_name_ar', 'last_name_ar')}),
          ('Personal Details', {'fields': ('gender', 'birthdate', 'nationality', 'national_id', 'profession', 'marital_status')}),
-         ('Contact Info', {'fields': ('mobile_no', 'address', 'emergency_contact')}),
+         ('Contact Info', {'fields': ('address', 'emergency_contact')}),
          ('Extra Experience Info', {'fields': ('city', 'age_range', 'has_volunteered_before', 'experience_description', 'work_link', 'joining_reasons', 'possible_participation_days', 'possible_participation_time')}),
          ('Skills', {'fields': ('skills',)}),
     )
 
     def has_add_permission(self, request):
         return False
-    
-    def get_readonly_fields(self, request, obj=None):
-        if obj:
-            return ['username', 'email', 'password']
-        return []
 
     def reject_volunteer(self, request, queryset):
         queryset.update(volunteer_status=constants.VOLUNTEER_STATUS_REJECTED)

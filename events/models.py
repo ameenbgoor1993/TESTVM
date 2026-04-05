@@ -95,7 +95,7 @@ class Area(models.Model):
         return self.name_en
 
 class VolunteerApplication(models.Model):
-    volunteer = models.ForeignKey('users.Volunteer', related_name='applications', on_delete=models.CASCADE)
+    volunteer = models.ForeignKey('users.VolunteerProfile', related_name='applications', on_delete=models.CASCADE)
     event = models.ForeignKey(Event, related_name='applications', on_delete=models.CASCADE)
     status = models.IntegerField(choices=constants.APP_STATUS_CHOICES, default=constants.APP_STATUS_PENDING)
 
@@ -107,7 +107,7 @@ class VolunteerApplication(models.Model):
         unique_together = ('volunteer', 'event')
 
     def __str__(self):
-        return f"{self.volunteer.username} - {self.event.title} ({self.status})"
+        return f"{self.volunteer} - {self.event.title} ({self.status})"
 
 class Attendance(models.Model):
     application = models.ForeignKey(VolunteerApplication, related_name='attendances', on_delete=models.CASCADE)
@@ -125,7 +125,7 @@ class Attendance(models.Model):
         verbose_name_plural = "Attendance Records"
 
     def __str__(self):
-        return f"{self.application.volunteer.username} - {self.check_in_time.strftime('%Y-%m-%d %H:%M')}"
+        return f"{self.application.volunteer} - {self.check_in_time.strftime('%Y-%m-%d %H:%M')}"
 
     @property
     def duration(self):

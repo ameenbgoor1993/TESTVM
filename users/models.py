@@ -21,12 +21,30 @@ class User(AbstractUser):
 from django.contrib.auth.hashers import make_password, check_password
 
 class Volunteer(models.Model):
-    # Core Auth fields for standalone volunteer
+     # Core Auth fields for standalone volunteer account
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
+    mobile_no = models.CharField(max_length=20, unique=True)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Account ({self.email})"
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
+class VolunteerProfile(models.Model):
+    account = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='profiles')
+    user_type = models.IntegerField(choices=constants.USER_TYPE_CHOICES, default=constants.USER_TYPE_THEMSELF)
     
     first_name_en = models.CharField(max_length=50, blank=True)
     middle_name_en = models.CharField(max_length=50, blank=True)
@@ -42,41 +60,28 @@ class Volunteer(models.Model):
     nationality = models.CharField(max_length=100, blank=True)
     national_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
     profession = models.CharField(max_length=100, blank=True)
-    mobile_no = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     emergency_contact = models.CharField(max_length=20, blank=True)
     
-    # New Fields
     marital_status = models.IntegerField(choices=constants.MARITAL_STATUS_CHOICES, blank=True, null=True)
-    skills = models.ManyToManyField('events.Skills', blank=True, related_name='volunteers')
+    skills = models.ManyToManyField('events.Skills', blank=True, related_name='profiles')
     
     volunteer_status = models.IntegerField(choices=constants.VOLUNTEER_STATUS_CHOICES, default=constants.VOLUNTEER_STATUS_PENDING)
 
-    # Enhanced Volunteer Profile
-    city = models.ForeignKey('events.City', on_delete=models.SET_NULL, null=True, blank=True, related_name='volunteers')
+    city = models.ForeignKey('events.City', on_delete=models.SET_NULL, null=True, blank=True, related_name='profiles')
     has_volunteered_before = models.BooleanField(default=False, verbose_name="Have you volunteered before?")
     experience_description = models.TextField(blank=True, verbose_name="Experience Description")
     work_link = models.URLField(blank=True, verbose_name="Work/Portfolio Link")
-    joining_reasons = models.ManyToManyField('core_settings.JoiningReason', blank=True, related_name='volunteers')
+    joining_reasons = models.ManyToManyField('core_settings.JoiningReason', blank=True, related_name='profiles')
     
-    # Participation Preferences
     possible_participation_days = models.CharField(max_length=255, blank=True, help_text="Select multiple days (comma separated)")
     possible_participation_time = models.CharField(max_length=255, blank=True, help_text="Select preferred times")
 
     age_range = models.IntegerField(choices=constants.AGE_RANGE_CHOICES, blank=True, null=True, verbose_name="Age Group")
 
     def __str__(self):
-        return f"{self.first_name_en} {self.last_name_en} ({self.username})"
-
-    @property
-    def is_authenticated(self):
-        return True
-
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
+        name = self.first_name_en or self.first_name_ar or "Unknown"
+        return f"{name} ({self.get_user_type_display()})"
 
 class VolunteerToken(models.Model):
     key = models.CharField(max_length=40, primary_key=True)
@@ -117,14 +122,14 @@ class AcceptedVolunteerManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(volunteer_status=constants.VOLUNTEER_STATUS_ACCEPTED)
 
-class VolunteerRegistration(Volunteer):
+class VolunteerRegistration(VolunteerProfile):
     objects = VolunteerRegistrationManager()
     class Meta:
         proxy = True
         verbose_name = "Volunteer Registration"
         verbose_name_plural = "Volunteer Registrations"
 
-class AcceptedVolunteer(Volunteer):
+class AcceptedVolunteer(VolunteerProfile):
     objects = AcceptedVolunteerManager()
     class Meta:
         proxy = True
